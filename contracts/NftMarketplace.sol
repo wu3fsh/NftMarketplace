@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import "./ERC20Token.sol";
 import "../interfaces/IERC721Token.sol";
 import "../interfaces/IERC1155Token.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -26,6 +28,8 @@ struct ListingInfo1155 {
 }
 
 contract NftMarketplace is ERC1155Holder {
+    using SafeERC20 for IERC20;
+
     address private _erc20tokenAddress;
     address private _erc721tokenAddress;
     address private _erc1155tokenAddress;
@@ -264,22 +268,23 @@ contract NftMarketplace is ERC1155Holder {
             "A bid should be greater than previous one"
         );
 
-        if (info.bidsCount > 0) {
-            ERC20Token(_erc20tokenAddress).transfer(info.winner, info.price);
-        }
+        _listings[tokenId] = ListingInfo(
+            price,
+            info.seller,
+            msg.sender,
+            info.bidsCount + 1,
+            info.startTimeSec
+        );
 
         ERC20Token(_erc20tokenAddress).transferFrom(
             msg.sender,
             address(this),
             price
         );
-        _listings[tokenId] = ListingInfo(
-            price,
-            info.seller,
-            msg.sender,
-            ++info.bidsCount,
-            info.startTimeSec
-        );
+
+        if (info.bidsCount > 0) {
+            IERC20(_erc20tokenAddress).safeTransfer(info.winner, info.price);
+        }
     }
 
     function makeBid1155(uint8 tokenId, uint256 price)
